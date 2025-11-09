@@ -129,7 +129,7 @@ TabPlayer:CreateSlider({
 })
 
 -------------------
--- ✅ RGB para el Frame (Mobile Friendly)
+-- ✅ RGB
 -------------------
 TabPlayer:CreateSlider({
     Name = "Color RGB",
@@ -173,11 +173,10 @@ TabPlayer:CreateSlider({
 })
 
 ----------------------------------------------------------------------
--- ✅ NUEVO: Ragdoll (Botón) - te tira al piso en modo "rigido/limp"
+-- ✅ RAGDOLL
 ----------------------------------------------------------------------
--- Esta función intentará "tirarte al piso" usando PlatformStand y un pequeño empujón hacia abajo.
 local function ragdollPlayer(duration)
-    duration = duration or 3 -- segundos que permanecerás en ragdoll
+    duration = duration or 3
     local player = game.Players.LocalPlayer
     local char = player.Character
     if not char then return end
@@ -185,38 +184,31 @@ local function ragdollPlayer(duration)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    -- Activar ragdoll/limp
     hum.PlatformStand = true
 
-    -- Pequeño empujón hacia abajo para "tirarte al piso"
     local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(0, 40000, 0) -- solo fuerza vertical
+    bv.MaxForce = Vector3.new(0, 40000, 0)
     bv.Velocity = Vector3.new(0, -60, 0)
     bv.Parent = hrp
 
-    -- remover BodyVelocity pronto
     task.delay(0.25, function()
-        if bv and bv.Parent then bv:Destroy() end
+        if bv then bv:Destroy() end
     end)
 
-    -- después del tiempo, volver a la normalidad (si el personaje todavía existe)
     task.delay(duration, function()
-        if hum and hum.Parent then
-            hum.PlatformStand = false
-        end
+        if hum then hum.PlatformStand = false end
     end)
 end
 
--- Botón en la UI (Player tab)
 TabPlayer:CreateButton({
     Name = "Ragdoll",
     Callback = function()
-        ragdollPlayer(3) -- 3 segundos de ragdoll (puedes ajustar)
+        ragdollPlayer(3)
     end
 })
 
 ----------------------------------------------------------------------
--- ✅ NUEVO: Spam Hit toggle (ejecuta el push request en loop mientras esté activo)
+-- ✅ SPAM HIT
 ----------------------------------------------------------------------
 local spamHitToggle = false
 local spamHitLoopTask = nil
@@ -225,24 +217,17 @@ local function startSpamHit()
     if spamHitLoopTask then return end
     spamHitLoopTask = task.spawn(function()
         while spamHitToggle do
-            -- Construir args tal como lo pediste
             local Players = game:GetService("Players")
-            local targetPlayer = Players:FindFirstChild("mc_danoxsslyxxs") -- si no existe, no hacemos nada esta iteración
-            local args = {
-                [1] = "Matamoscas de Hierro",
-                [2] = targetPlayer,
-                [3] = Vector3.new(-0.24057942628860474, 0, 0.9706294536590576)
-            }
+            local targetPlayer = Players:FindFirstChild("mc_danoxsslyxxs")
+            local args = {"Matamoscas de Hierro", targetPlayer, Vector3.new(-0.240579, 0, 0.970629)}
 
             if targetPlayer then
-                -- Intentar enviar el remote, protegido con pcall para evitar errores bloqueantes
-                local ok, err = pcall(function()
+                pcall(function()
                     game:GetService("ReplicatedStorage").Remotes.PushHitRequest:FireServer(unpack(args))
                 end)
-                -- si quieres, podrías mostrar errores con print(err) para debug
             end
 
-            task.wait(0.1) -- intervalo entre ejecuciones (ajustable)
+            task.wait(0.1)
         end
         spamHitLoopTask = nil
     end)
@@ -250,8 +235,6 @@ end
 
 local function stopSpamHit()
     spamHitToggle = false
-    -- El bucle lee spamHitToggle y terminará solo; limpiar tarea no es estrictamente necesario
-    -- pero dejamos spamHitLoopTask nil en el bucle mismo al finalizar.
 end
 
 TabTPS:CreateToggle({
@@ -259,10 +242,117 @@ TabTPS:CreateToggle({
     CurrentValue = false,
     Callback = function(state)
         spamHitToggle = state
-        if state then
-            startSpamHit()
+        if state then startSpamHit() else stopSpamHit() end
+    end
+})
+
+----------------------------------------------------------------------
+-- ✅ DESYNC BODY (CON DRAGGABLE GUI)
+----------------------------------------------------------------------
+
+local desyncActive = false
+local desyncGui = nil
+local desyncBP = nil
+local desyncBG = nil
+
+local function enableDesync()
+    if desyncActive then return end
+    desyncActive = true
+
+    local player = game.Players.LocalPlayer
+    local char = player.Character or player.CharacterAdded:Wait()
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    if not hrp or not hum then return end
+
+    hum.PlatformStand = true
+
+    desyncBP = Instance.new("BodyPosition")
+    desyncBP.MaxForce = Vector3.new(1e6,1e6,1e6)
+    desyncBP.Position = hrp.Position + Vector3.new(0,2,0)
+    desyncBP.Parent = hrp
+
+    desyncBG = Instance.new("BodyGyro")
+    desyncBG.MaxTorque = Vector3.new(1e6,1e6,1e6)
+    desyncBG.CFrame = hrp.CFrame
+    desyncBG.Parent = hrp
+end
+
+local function disableDesync()
+    desyncActive = false
+
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    if not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = false end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        if desyncBP then desyncBP:Destroy() end
+        if desyncBG then desyncBG:Destroy() end
+    end
+
+    desyncBP = nil
+    desyncBG = nil
+end
+
+local function createDesyncGUI()
+    if desyncGui then return end
+
+    desyncGui = Instance.new("ScreenGui")
+    desyncGui.Name = "DesyncGUI"
+    desyncGui.ResetOnSpawn = false
+    desyncGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 100)
+    frame.Position = UDim2.new(0.7, 0, 0.6, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    frame.Active = true
+    frame.Draggable = true  -- ✅ GUI ARRASTRABLE
+    frame.Parent = desyncGui
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-20,0,50)
+    btn.Position = UDim2.new(0,10,0,25)
+    btn.Text = "Desync Body"
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 18
+    btn.Parent = frame
+
+    btn.MouseButton1Click:Connect(function()
+        if desyncActive then
+            disableDesync()
+            btn.Text = "Desync Body"
         else
-            stopSpamHit()
+            enableDesync()
+            btn.Text = "Desync ON"
+        end
+    end)
+end
+
+local function removeDesyncGUI()
+    if desyncGui then
+        desyncGui:Destroy()
+        desyncGui = nil
+    end
+    disableDesync()
+end
+
+TabPlayer:CreateToggle({
+    Name = "Desync Body (GUI)",
+    CurrentValue = false,
+    Callback = function(v)
+        if v then
+            createDesyncGUI()
+        else
+            removeDesyncGUI()
         end
     end
 })
@@ -270,8 +360,3 @@ TabTPS:CreateToggle({
 ----------------------------------------------------------------------
 -- FIN DEL SCRIPT ORIGINAL + ADICIONES
 ----------------------------------------------------------------------
-
--- Nota: el script mantiene todas las funcionalidades anteriores y agrega:
--- 1) Botón "Ragdoll" en la pestaña Player que te tira al piso temporalmente.
--- 2) Toggle "Spam Hit" en la pestaña TPS que ejecuta el PushHitRequest en loop
---    usando al jugador "mc_danoxsslyxxs" (si existe). Se detiene al desactivar.
