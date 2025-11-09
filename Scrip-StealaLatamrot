@@ -1,0 +1,277 @@
+-- Cargar Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "STEAL A LATAMROT",
+    LoadingTitle = "Cargando...",
+    LoadingSubtitle = "By Javic",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "Javix§",
+        FileName = "§Javic UI Bypass§"
+    },
+    KeySystem = false
+})
+
+----------------------------------------------------------------------
+-- ✅ TABS
+----------------------------------------------------------------------
+local TabTPS = Window:CreateTab("TPS", 4483362458)
+local TabPlayer = Window:CreateTab("Player", 4483362458)
+
+----------------------------------------------------------------------
+-- ✅ GUI DE TP (INVISIBLE HASTA ACTIVAR)
+----------------------------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = false
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 120)
+Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+Frame.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+Frame.Parent = ScreenGui
+
+local BtnGuardar = Instance.new("TextButton")
+BtnGuardar.Size = UDim2.new(1, -20, 0, 40)
+BtnGuardar.Position = UDim2.new(0, 10, 0, 10)
+BtnGuardar.Text = "Guardar Punto"
+BtnGuardar.Parent = Frame
+
+local BtnTP = Instance.new("TextButton")
+BtnTP.Size = UDim2.new(1, -20, 0, 40)
+BtnTP.Position = UDim2.new(0, 10, 0, 65)
+BtnTP.Text = "TP a Punto Guardado"
+BtnTP.Parent = Frame
+
+local puntoGuardado = nil
+
+BtnGuardar.MouseButton1Click:Connect(function()
+    local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+    if char:FindFirstChild("HumanoidRootPart") then
+        puntoGuardado = char.HumanoidRootPart.Position
+        BtnGuardar.Text = "Punto Guardado!"
+        task.wait(1)
+        BtnGuardar.Text = "Guardar Punto"
+    end
+end)
+
+BtnTP.MouseButton1Click:Connect(function()
+    if puntoGuardado then
+        local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+        char.HumanoidRootPart.CFrame = CFrame.new(puntoGuardado)
+    else
+        BtnTP.Text = "No hay punto guardado"
+        task.wait(1)
+        BtnTP.Text = "TP a Punto Guardado"
+    end
+end)
+
+----------------------------------------------------------------------
+-- ✅ TAB: TPS
+----------------------------------------------------------------------
+TabTPS:CreateToggle({
+    Name = "Tp Scrip",
+    CurrentValue = false,
+    Callback = function(state)
+        ScreenGui.Enabled = state
+    end
+})
+
+----------------------------------------------------------------------
+-- ✅ TAB: PLAYER – Speed + SuperSalto + RGB
+----------------------------------------------------------------------
+
+-------------------
+-- Velocidad
+-------------------
+local humanoid = nil
+local speedToggle = false
+local currentSpeed = 16
+
+local function updateHumanoid()
+    local char = game.Players.LocalPlayer.Character
+    if char then
+        humanoid = char:FindFirstChildOfClass("Humanoid")
+    end
+end
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.3)
+    updateHumanoid()
+end)
+
+updateHumanoid()
+
+TabPlayer:CreateToggle({
+    Name = "Speed",
+    CurrentValue = false,
+    Callback = function(state)
+        speedToggle = state
+        if humanoid then
+            humanoid.WalkSpeed = state and currentSpeed or 16
+        end
+    end
+})
+
+TabPlayer:CreateSlider({
+    Name = "Speed Barra",
+    Range = {16, 200},
+    Increment = 1,
+    CurrentValue = 16,
+    Callback = function(value)
+        currentSpeed = value
+        if speedToggle and humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+-------------------
+-- ✅ RGB para el Frame (Mobile Friendly)
+-------------------
+TabPlayer:CreateSlider({
+    Name = "Color RGB",
+    Range = {0, 255},
+    Increment = 1,
+    CurrentValue = 50,
+    Callback = function(v)
+        Frame.BackgroundColor3 = Color3.fromRGB(v, 50, 255 - v)
+    end
+})
+
+-------------------
+-- ✅ Super Salto
+-------------------
+local superToggle = false
+local jumpPower = 50
+local jumpBoost = 200
+
+TabPlayer:CreateToggle({
+    Name = "SuperSalto",
+    CurrentValue = false,
+    Callback = function(state)
+        superToggle = state
+        if humanoid then
+            humanoid.JumpPower = state and jumpBoost or jumpPower
+        end
+    end
+})
+
+TabPlayer:CreateSlider({
+    Name = "Fuerza Salto",
+    Range = {50, 300},
+    Increment = 1,
+    CurrentValue = 50,
+    Callback = function(value)
+        jumpBoost = value
+        if superToggle and humanoid then
+            humanoid.JumpPower = value
+        end
+    end
+})
+
+----------------------------------------------------------------------
+-- ✅ NUEVO: Ragdoll (Botón) - te tira al piso en modo "rigido/limp"
+----------------------------------------------------------------------
+-- Esta función intentará "tirarte al piso" usando PlatformStand y un pequeño empujón hacia abajo.
+local function ragdollPlayer(duration)
+    duration = duration or 3 -- segundos que permanecerás en ragdoll
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    -- Activar ragdoll/limp
+    hum.PlatformStand = true
+
+    -- Pequeño empujón hacia abajo para "tirarte al piso"
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(0, 40000, 0) -- solo fuerza vertical
+    bv.Velocity = Vector3.new(0, -60, 0)
+    bv.Parent = hrp
+
+    -- remover BodyVelocity pronto
+    task.delay(0.25, function()
+        if bv and bv.Parent then bv:Destroy() end
+    end)
+
+    -- después del tiempo, volver a la normalidad (si el personaje todavía existe)
+    task.delay(duration, function()
+        if hum and hum.Parent then
+            hum.PlatformStand = false
+        end
+    end)
+end
+
+-- Botón en la UI (Player tab)
+TabPlayer:CreateButton({
+    Name = "Ragdoll",
+    Callback = function()
+        ragdollPlayer(3) -- 3 segundos de ragdoll (puedes ajustar)
+    end
+})
+
+----------------------------------------------------------------------
+-- ✅ NUEVO: Spam Hit toggle (ejecuta el push request en loop mientras esté activo)
+----------------------------------------------------------------------
+local spamHitToggle = false
+local spamHitLoopTask = nil
+
+local function startSpamHit()
+    if spamHitLoopTask then return end
+    spamHitLoopTask = task.spawn(function()
+        while spamHitToggle do
+            -- Construir args tal como lo pediste
+            local Players = game:GetService("Players")
+            local targetPlayer = Players:FindFirstChild("mc_danoxsslyxxs") -- si no existe, no hacemos nada esta iteración
+            local args = {
+                [1] = "Matamoscas de Hierro",
+                [2] = targetPlayer,
+                [3] = Vector3.new(-0.24057942628860474, 0, 0.9706294536590576)
+            }
+
+            if targetPlayer then
+                -- Intentar enviar el remote, protegido con pcall para evitar errores bloqueantes
+                local ok, err = pcall(function()
+                    game:GetService("ReplicatedStorage").Remotes.PushHitRequest:FireServer(unpack(args))
+                end)
+                -- si quieres, podrías mostrar errores con print(err) para debug
+            end
+
+            task.wait(0.1) -- intervalo entre ejecuciones (ajustable)
+        end
+        spamHitLoopTask = nil
+    end)
+end
+
+local function stopSpamHit()
+    spamHitToggle = false
+    -- El bucle lee spamHitToggle y terminará solo; limpiar tarea no es estrictamente necesario
+    -- pero dejamos spamHitLoopTask nil en el bucle mismo al finalizar.
+end
+
+TabTPS:CreateToggle({
+    Name = "Spam Hit",
+    CurrentValue = false,
+    Callback = function(state)
+        spamHitToggle = state
+        if state then
+            startSpamHit()
+        else
+            stopSpamHit()
+        end
+    end
+})
+
+----------------------------------------------------------------------
+-- FIN DEL SCRIPT ORIGINAL + ADICIONES
+----------------------------------------------------------------------
+
+-- Nota: el script mantiene todas las funcionalidades anteriores y agrega:
+-- 1) Botón "Ragdoll" en la pestaña Player que te tira al piso temporalmente.
+-- 2) Toggle "Spam Hit" en la pestaña TPS que ejecuta el PushHitRequest en loop
+--    usando al jugador "mc_danoxsslyxxs" (si existe). Se detiene al desactivar.
