@@ -1,4 +1,7 @@
--- Cargar Rayfield
+--====================================================--
+-- ✅ Cargar Rayfield
+--====================================================--
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -13,15 +16,19 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
-----------------------------------------------------------------------
--- ✅ TABS
-----------------------------------------------------------------------
+
+--====================================================--
+-- ✅ Crear TABS
+--====================================================--
+
 local TabTPS = Window:CreateTab("TPS", 4483362458)
 local TabPlayer = Window:CreateTab("Player", 4483362458)
 
-----------------------------------------------------------------------
--- ✅ GUI DE TP (INVISIBLE HASTA ACTIVAR)
-----------------------------------------------------------------------
+
+--====================================================--
+-- ✅ GUI DE TP (invisible hasta activar toggle)
+--====================================================--
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Enabled = false
@@ -68,9 +75,11 @@ BtnTP.MouseButton1Click:Connect(function()
     end
 end)
 
-----------------------------------------------------------------------
+
+--====================================================--
 -- ✅ TAB: TPS
-----------------------------------------------------------------------
+--====================================================--
+
 TabTPS:CreateToggle({
     Name = "Tp Scrip",
     CurrentValue = false,
@@ -79,137 +88,11 @@ TabTPS:CreateToggle({
     end
 })
 
-----------------------------------------------------------------------
--- ✅ TAB: PLAYER – Speed + SuperSalto + RGB
-----------------------------------------------------------------------
 
--------------------
--- Velocidad
--------------------
-local humanoid = nil
-local speedToggle = false
-local currentSpeed = 16
-
-local function updateHumanoid()
-    local char = game.Players.LocalPlayer.Character
-    if char then
-        humanoid = char:FindFirstChildOfClass("Humanoid")
-    end
-end
-
-game.Players.LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.3)
-    updateHumanoid()
-end)
-
-updateHumanoid()
-
-TabPlayer:CreateToggle({
-    Name = "Speed",
-    CurrentValue = false,
-    Callback = function(state)
-        speedToggle = state
-        if humanoid then
-            humanoid.WalkSpeed = state and currentSpeed or 16
-        end
-    end
-})
-
-TabPlayer:CreateSlider({
-    Name = "Speed Barra",
-    Range = {16, 200},
-    Increment = 1,
-    CurrentValue = 16,
-    Callback = function(value)
-        currentSpeed = value
-        if speedToggle and humanoid then
-            humanoid.WalkSpeed = value
-        end
-    end
-})
-
--------------------
--- ✅ RGB
--------------------
-TabPlayer:CreateSlider({
-    Name = "Color RGB",
-    Range = {0, 255},
-    Increment = 1,
-    CurrentValue = 50,
-    Callback = function(v)
-        Frame.BackgroundColor3 = Color3.fromRGB(v, 50, 255 - v)
-    end
-})
-
--------------------
--- ✅ Super Salto
--------------------
-local superToggle = false
-local jumpPower = 50
-local jumpBoost = 200
-
-TabPlayer:CreateToggle({
-    Name = "SuperSalto",
-    CurrentValue = false,
-    Callback = function(state)
-        superToggle = state
-        if humanoid then
-            humanoid.JumpPower = state and jumpBoost or jumpPower
-        end
-    end
-})
-
-TabPlayer:CreateSlider({
-    Name = "Fuerza Salto",
-    Range = {50, 300},
-    Increment = 1,
-    CurrentValue = 50,
-    Callback = function(value)
-        jumpBoost = value
-        if superToggle and humanoid then
-            humanoid.JumpPower = value
-        end
-    end
-})
-
-----------------------------------------------------------------------
--- ✅ RAGDOLL
-----------------------------------------------------------------------
-local function ragdollPlayer(duration)
-    duration = duration or 3
-    local player = game.Players.LocalPlayer
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    hum.PlatformStand = true
-
-    local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(0, 40000, 0)
-    bv.Velocity = Vector3.new(0, -60, 0)
-    bv.Parent = hrp
-
-    task.delay(0.25, function()
-        if bv then bv:Destroy() end
-    end)
-
-    task.delay(duration, function()
-        if hum then hum.PlatformStand = false end
-    end)
-end
-
-TabPlayer:CreateButton({
-    Name = "Ragdoll",
-    Callback = function()
-        ragdollPlayer(3)
-    end
-})
-
-----------------------------------------------------------------------
+--====================================================--
 -- ✅ SPAM HIT
-----------------------------------------------------------------------
+--====================================================--
+
 local spamHitToggle = false
 local spamHitLoopTask = nil
 
@@ -246,10 +129,291 @@ TabTPS:CreateToggle({
     end
 })
 
-----------------------------------------------------------------------
--- ✅ DESYNC BODY (CON DRAGGABLE GUI)
-----------------------------------------------------------------------
 
+--====================================================--
+-- ✅ SERVER BROWSER (REJOIN) – versión arreglada e integrada
+--====================================================--
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = game.Players.LocalPlayer
+
+local rejoinGui = nil
+
+local function getServers(cursor)
+    -- Usa la API pública de Roblox para servidores
+    local url = "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"
+    if cursor then url = url .. "&cursor=" .. tostring(cursor) end
+
+    local ok, raw = pcall(function()
+        return game:HttpGet(url)
+    end)
+
+    if not ok or not raw then
+        return nil
+    end
+
+    local data
+    local success, decoded = pcall(function()
+        return HttpService:JSONDecode(raw)
+    end)
+    if not success then return nil end
+    return decoded
+end
+
+local function createRejoinGUI()
+    if rejoinGui then
+        rejoinGui.Enabled = true
+        return
+    end
+
+    rejoinGui = Instance.new("ScreenGui")
+    rejoinGui.Name = "RejoinGui"
+    rejoinGui.ResetOnSpawn = false
+    rejoinGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 520, 0, 420)
+    frame.Position = UDim2.new(0.25, 0, 0.25, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = rejoinGui
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 40)
+    title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    title.Text = "Lista de Servidores"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.SourceSansBold
+    title.TextSize = 22
+    title.Parent = frame
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -20, 1, -60)
+    scroll.Position = UDim2.new(0, 10, 0, 50)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 6
+    scroll.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    scroll.Parent = frame
+
+    local UIList = Instance.new("UIListLayout")
+    UIList.Parent = scroll
+    UIList.Padding = UDim.new(0, 5)
+
+    local function clearServerEntries()
+        for _, child in ipairs(scroll:GetChildren()) do
+            if child ~= UIList then
+                child:Destroy()
+            end
+        end
+    end
+
+    local function loadServers()
+        clearServerEntries()
+
+        local cursor = nil
+        local anyServer = false
+
+        repeat
+            local data = getServers(cursor)
+            if not data or not data.data then break end
+
+            for _, server in ipairs(data.data) do
+                anyServer = true
+                local serverFrame = Instance.new("Frame")
+                serverFrame.Size = UDim2.new(1, -10, 0, 60)
+                serverFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                serverFrame.Parent = scroll
+
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(0.65, 0, 1, 0)
+                label.Position = UDim2.new(0, 10, 0, 0)
+                label.BackgroundTransparency = 1
+                label.Text = "Jugadores: "..tostring(server.playing).."/"..tostring(server.maxPlayers)
+                label.TextColor3 = Color3.new(1, 1, 1)
+                label.TextSize = 18
+                label.TextXAlignment = Enum.TextXAlignment.Left
+                label.Parent = serverFrame
+
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(0.25, 0, 0.7, 0)
+                btn.Position = UDim2.new(0.72, 0, 0.15, 0)
+                btn.Text = "Entrar"
+                btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+                btn.TextColor3 = Color3.new(1,1,1)
+                btn.Font = Enum.Font.SourceSansBold
+                btn.TextSize = 18
+                btn.Parent = serverFrame
+
+                local serverId = server.id
+                btn.MouseButton1Click:Connect(function()
+                    -- Teleporta al server seleccionado
+                    pcall(function()
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
+                    end)
+                end)
+            end
+
+            cursor = data.nextPageCursor
+            task.wait(0.12)
+        until not cursor
+
+        -- Espera un tick para que AbsoluteContentSize se actualice y luego ajusta CanvasSize
+        task.wait()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
+
+        -- Si no hubo servidores a mostrar:
+        if not anyServer then
+            local noLabel = Instance.new("TextLabel")
+            noLabel.Size = UDim2.new(1, -10, 0, 30)
+            noLabel.Position = UDim2.new(0, 5, 0, 10)
+            noLabel.BackgroundTransparency = 1
+            noLabel.Text = "No se encontraron servidores."
+            noLabel.TextColor3 = Color3.new(1,1,1)
+            noLabel.TextSize = 18
+            noLabel.Parent = scroll
+            task.wait()
+            scroll.CanvasSize = UDim2.new(0,0,0,UIList.AbsoluteContentSize.Y)
+        end
+    end
+
+    -- Botón para recargar servidores
+    local refreshBtn = Instance.new("TextButton")
+    refreshBtn.Size = UDim2.new(0, 120, 0, 30)
+    refreshBtn.Position = UDim2.new(1, -130, 0, 8)
+    refreshBtn.AnchorPoint = Vector2.new(0,0)
+    refreshBtn.Text = "Recargar"
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    refreshBtn.TextColor3 = Color3.new(1,1,1)
+    refreshBtn.Font = Enum.Font.SourceSans
+    refreshBtn.TextSize = 16
+    refreshBtn.Parent = frame
+
+    refreshBtn.MouseButton1Click:Connect(function()
+        loadServers()
+    end)
+
+    -- Carga inicial
+    loadServers()
+end
+
+local function disableRejoinGUI()
+    if rejoinGui then rejoinGui.Enabled = false end
+end
+
+TabTPS:CreateToggle({
+    Name = "Rejoin",
+    CurrentValue = false,
+    Callback = function(on)
+        if on then createRejoinGUI() else disableRejoinGUI() end
+    end
+})
+
+
+--====================================================--
+-- ✅ PLAYER TAB (Speed, Jump, RGB, Ragdoll, Desync)
+--====================================================--
+
+local humanoid = nil
+local speedToggle = false
+local currentSpeed = 16
+
+local function updateHumanoid()
+    local char = game.Players.LocalPlayer.Character
+    if char then humanoid = char:FindFirstChildOfClass("Humanoid") end
+end
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.3)
+    updateHumanoid()
+end)
+
+updateHumanoid()
+
+-- ✅ Speed
+TabPlayer:CreateToggle({
+    Name = "Speed",
+    CurrentValue = false,
+    Callback = function(state)
+        speedToggle = state
+        if humanoid then humanoid.WalkSpeed = state and currentSpeed or 16 end
+    end
+})
+
+TabPlayer:CreateSlider({
+    Name = "Speed Barra",
+    Range = {16, 200},
+    Increment = 1,
+    CurrentValue = 16,
+    Callback = function(v)
+        currentSpeed = v
+        if speedToggle and humanoid then humanoid.WalkSpeed = v end
+    end
+})
+
+-- ✅ RGB
+TabPlayer:CreateSlider({
+    Name = "Color RGB",
+    Range = {0, 255},
+    Increment = 1,
+    CurrentValue = 50,
+    Callback = function(v)
+        Frame.BackgroundColor3 = Color3.fromRGB(v, 50, 255 - v)
+    end
+})
+
+-- ✅ Super Salto
+local superToggle = false
+local jumpBoost = 200
+local jumpDefault = 50
+
+TabPlayer:CreateToggle({
+    Name = "SuperSalto",
+    CurrentValue = false,
+    Callback = function(state)
+        superToggle = state
+        if humanoid then humanoid.JumpPower = state and jumpBoost or jumpDefault end
+    end
+})
+
+TabPlayer:CreateSlider({
+    Name = "Fuerza Salto",
+    Range = {50, 300},
+    Increment = 1,
+    CurrentValue = 50,
+    Callback = function(v)
+        jumpBoost = v
+        if superToggle and humanoid then humanoid.JumpPower = v end
+    end
+})
+
+-- ✅ Ragdoll
+local function ragdollPlayer(duration)
+    duration = duration or 3
+    local char = game.Players.LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    hum.PlatformStand = true
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(0, 40000, 0)
+    bv.Velocity = Vector3.new(0, -60, 0)
+    bv.Parent = hrp
+
+    task.delay(0.25, function() if bv then bv:Destroy() end end)
+    task.delay(duration, function() if hum then hum.PlatformStand = false end end)
+end
+
+TabPlayer:CreateButton({
+    Name = "Ragdoll",
+    Callback = function() ragdollPlayer(3) end
+})
+
+-- ✅ Desync Body GUI
 local desyncActive = false
 local desyncGui = nil
 local desyncBP = nil
@@ -259,12 +423,9 @@ local function enableDesync()
     if desyncActive then return end
     desyncActive = true
 
-    local player = game.Players.LocalPlayer
-    local char = player.Character or player.CharacterAdded:Wait()
-
+    local char = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
-
     if not hrp or not hum then return end
 
     hum.PlatformStand = true
@@ -283,18 +444,14 @@ end
 local function disableDesync()
     desyncActive = false
 
-    local player = game.Players.LocalPlayer
-    local char = player.Character
+    local char = game.Players.LocalPlayer.Character
     if not char then return end
 
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then hum.PlatformStand = false end
 
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        if desyncBP then desyncBP:Destroy() end
-        if desyncBG then desyncBG:Destroy() end
-    end
+    if desyncBP then desyncBP:Destroy() end
+    if desyncBG then desyncBG:Destroy() end
 
     desyncBP = nil
     desyncBG = nil
@@ -304,7 +461,6 @@ local function createDesyncGUI()
     if desyncGui then return end
 
     desyncGui = Instance.new("ScreenGui")
-    desyncGui.Name = "DesyncGUI"
     desyncGui.ResetOnSpawn = false
     desyncGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
@@ -313,7 +469,7 @@ local function createDesyncGUI()
     frame.Position = UDim2.new(0.7, 0, 0.6, 0)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
     frame.Active = true
-    frame.Draggable = true  -- ✅ GUI ARRASTRABLE
+    frame.Draggable = true
     frame.Parent = desyncGui
 
     local btn = Instance.new("TextButton")
@@ -338,10 +494,8 @@ local function createDesyncGUI()
 end
 
 local function removeDesyncGUI()
-    if desyncGui then
-        desyncGui:Destroy()
-        desyncGui = nil
-    end
+    if desyncGui then desyncGui:Destroy() end
+    desyncGui = nil
     disableDesync()
 end
 
@@ -349,14 +503,6 @@ TabPlayer:CreateToggle({
     Name = "Desync Body (GUI)",
     CurrentValue = false,
     Callback = function(v)
-        if v then
-            createDesyncGUI()
-        else
-            removeDesyncGUI()
-        end
+        if v then createDesyncGUI() else removeDesyncGUI() end
     end
 })
-
-----------------------------------------------------------------------
--- FIN DEL SCRIPT ORIGINAL + ADICIONES
-----------------------------------------------------------------------
